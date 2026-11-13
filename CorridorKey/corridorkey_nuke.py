@@ -159,7 +159,7 @@ def _default_cache_dir(node) -> str:
 
 
 def _cache_dir(node) -> str:
-    path = node["cache_dir"].evaluate().strip()
+    path = (node["cache_dir"].evaluate() or "").strip()
     if not path:
         path = _default_cache_dir(node)
         node["cache_dir"].setValue(path)
@@ -213,7 +213,7 @@ def _cache_sharers(node, cache):
     for n in nuke.allNodes(recurseGroups=True):
         if n is node or n.knob("ck_first") is None or n.knob("cache_dir") is None:
             continue
-        other = n["cache_dir"].evaluate().strip() or _default_cache_dir(n)
+        other = (n["cache_dir"].evaluate() or "").strip() or _default_cache_dir(n)
         if _norm(other) == me:
             out.append(n)
     return out
@@ -256,12 +256,26 @@ def _set_srgb_encode(expr_node):
 
 
 def create(connect_selected=True):
-    """Create a CorridorKey node (Nodes menu / Tab entry)."""
-    sel = nuke.selectedNodes() if connect_selected else []
-    for n in nuke.allNodes():
-        n.setSelected(False)
+    """Create a CorridorKey node.
 
-    g = nuke.nodes.Group(name="CorridorKey1")
+    From the Tab menu / Nodes toolbar (connect_selected=True) it is made with nuke.createNode, so it behaves
+    like any Nuke node: it appears where you last clicked in the Node Graph, or under the selected node and
+    connected to it. upgrade() uses connect_selected=False and positions the node itself.
+    """
+    upstream, downstream = None, []
+    if connect_selected:
+        try:
+            upstream = nuke.selectedNode()
+        except ValueError:
+            upstream = None
+        if upstream is not None:      # nodes fed by the selected node: the new node is inserted before them
+            downstream = [(d, i) for d in upstream.dependent(nuke.INPUTS | nuke.HIDDEN_INPUTS, forceEvaluate=False)
+                          for i in range(d.inputs()) if d.input(i) is upstream]
+        g = nuke.createNode("Group", inpanel=False)
+    else:
+        for n in nuke.allNodes():
+            n.setSelected(False)
+        g = nuke.nodes.Group()
     g.setName("CorridorKey1", uncollide=True)
     g["tile_color"].setValue(0x1FA35AFF)
     g["note_font"].setValue("Bold")
@@ -439,10 +453,15 @@ def create(connect_selected=True):
 
         nuke.nodes.Output(name="Output1", inputs=[sw_ready], xpos=0, ypos=100)
 
-    if sel:
-        g.setInput(0, sel[0])
-        g.setXYpos(sel[0].xpos(), sel[0].ypos() + 80)
+    # createNode tried to connect the selected node before the Group had inputs - connect it now
+    if upstream is not None and g.input(0) is None and upstream is not g:
+        g.setInput(0, upstream)
+    for d, i in downstream:
+        if d is not g and d.input(i) is upstream:
+            d.setInput(i, g)
     g.setSelected(True)
+    if connect_selected and nuke.GUI:
+        g.showControlPanel()
     return g
 
 
