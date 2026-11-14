@@ -6,6 +6,25 @@ The plugin is free and unofficial. It doesn't include CorridorKey itself: the in
 
 > Corridor Digital also sells an official, commercially supported CorridorKey plugin for Nuke and other hosts at [corridorkey.com](https://corridorkey.com).
 
+![CorridorKey in Nuke: plate, matte, premultiplied FG and comp over a new background](docs/images/contact_sheet.jpg)
+
+## Examples
+
+The image above shows frames 104, 117 and 128 of a green screen shot, keyed in an ACES 2.0 script with no hint and default settings. From left to right: the plate, the CorridorKey matte, the premultiplied foreground, and a comp over a new background.
+
+**Hair close-up (frame 117):** fine flyaway strands survive in the matte and in the comp.
+
+![Hair detail at frame 117: plate, matte and comp](docs/images/hair_detail.jpg)
+
+**The node.** The main tab, and the built-in *How to use* tab:
+
+<p>
+  <img src="docs/images/node_panel.jpg" alt="CorridorKey node properties panel" width="49%">
+  <img src="docs/images/node_panel_howto.jpg" alt="CorridorKey node How to use tab" width="49%">
+</p>
+
+<sub>Example footage: ActionVFX practice clip PF0047-07.</sub>
+
 ## Features
 
 - **CorridorKey 2.0 node.** Connect the plate, press **Run CorridorKey**, and the key comes back into the node. The model keys the whole frame range together, which keeps the key stable over time, and runs in the background with a progress bar.

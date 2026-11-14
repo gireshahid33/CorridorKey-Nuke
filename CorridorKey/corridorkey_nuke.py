@@ -101,32 +101,34 @@ MODEL_COLOURS = ["viewer look (recommended)", "sRGB texture (no tone map)"]
 MODEL_ROLES = ["color_picking", "matte_paint"]
 
 HELP_HTML = """<b>CorridorKey 2.0 - how to use</b><br><br>
-<b>1. Plate</b> - connect your green/blue screen plate to the <i>Plate</i> input.
-Works in ACES and in Nuke's default colour: the node converts the plate to the
-display look the model was trained on and converts the key back to your working space.<br><br>
-<b>2. Cache folder</b> - where the plate frames and the key are saved. Use one folder
-per CorridorKey node (a copy-pasted node keeps the same folder - Run will offer its own subfolder).
-Empty = automatic folder in the backend's _nuke_cache.<br><br>
-<b>3. Frame range</b> - <i>from input</i> takes the plate's range, <i>in/out</i> takes the
-in and out points you set in the Viewer. The model keys the whole range together
-(that is what keeps it stable), so press <b>Run CorridorKey</b> and watch the progress bar.<br><br>
-<b>4. Hint</b> (optional 2nd input) - a matte that tells the model WHAT to keep:
-white = subject, black = remove. Use it when the model keeps light stands/rigs or picks
-the wrong subject.<br>
-&nbsp;&nbsp;- <i>first frame only</i>: one good matte on the first frame of the range; the model follows it through the shot.<br>
-&nbsp;&nbsp;- <i>every frame</i>: a roto or garbage matte for every frame (most control).<br>
+<b>1. Plate</b> - connect your green/blue screen plate to the <i>Plate</i> input.<br>
+Works in ACES and in Nuke's default colour: the plate is converted to the display<br>
+look the model was trained on, and the key comes back in your working space.<br><br>
+<b>2. Cache folder</b> - where the plate frames and the key are saved.<br>
+Use one folder per CorridorKey node. A copy-pasted node keeps the same folder;<br>
+Run then offers it its own subfolder. Empty = automatic folder.<br><br>
+<b>3. Frame range</b> - <i>from input</i> = the plate's range, <i>in/out</i> = the Viewer's<br>
+in and out points. The model keys the whole range together (that keeps it stable):<br>
+press <b>Run CorridorKey</b> and watch the progress bar.<br><br>
+<b>4. Hint</b> (optional 2nd input) - a matte that tells the model WHAT to keep:<br>
+white = subject, black = remove. Use it when the model keeps stands, rigs or<br>
+furniture, or picks the wrong subject. A rough, slightly loose Roto is enough.<br>
+&nbsp;&nbsp;- <i>first frame only</i>: one matte on the first frame of the range;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;the model follows the subject through the shot.<br>
+&nbsp;&nbsp;- <i>every frame</i>: an animated roto / garbage matte (most control).<br>
 &nbsp;&nbsp;- <i>channel</i>: which channel of the hint input holds the matte.<br>
-&nbsp;&nbsp;- <i>hint quality</i>: how much to trust it - 0.95 clean roto, 0.75 rough matte, 0.5 or less loose garbage matte.<br><br>
-<b>5. Output</b> - changes instantly, no re-run: premultiplied FG, straight FG, matte only,
-or plate + alpha (your original plate pixels with the new alpha - best for highlights/HDR).<br>
-<i>key starts at</i>: the frame where the key begins - set automatically to the first keyed frame;
-type another frame to slide the key, <i>reset</i> to put it back.<br>
-<i>clip black / clip white</i> tighten the matte live (background noise / core holes).<br>
+&nbsp;&nbsp;- <i>hint quality</i>: 0.95 clean roto, 0.75 rough matte, 0.5 loose garbage matte.<br><br>
+<b>5. Output</b> - changes instantly, no re-run:<br>
+premultiplied FG, straight FG, matte only, or plate + alpha<br>
+(your original plate pixels with the new alpha - best for highlights/HDR).<br>
+<i>key starts at</i>: frame where the key begins (set automatically); <i>reset</i> restores it.<br>
+<i>clip black / clip white</i>: tighten the matte live (background noise / core holes).<br>
 <i>despill</i> is baked into the key: re-run after changing it.<br><br>
-<b>6. Advanced</b> - <i>model colour</i>: leave on viewer look. <i>GPU memory</i>: auto,
-or low VRAM if you get "CUDA out of memory". <i>window</i>: frames keyed together (0 = auto).<br><br>
-<b>Create Read + Switch</b> builds a Read of the keyed EXRs and a Switch in your node graph
-(also done automatically after every run).
+<b>6. Advanced</b> - <i>model colour</i>: leave on viewer look.<br>
+<i>GPU memory</i>: auto, or low VRAM if you get "CUDA out of memory".<br>
+<i>window</i>: frames keyed together (0 = auto).<br><br>
+<b>Create Read + Switch</b> (Ctrl+Alt+K) builds a Read of the keyed EXRs and an<br>
+output Switch in your node graph - also done automatically after every run.
 """
 
 _jobs: dict[str, "_Job"] = {}
