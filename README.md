@@ -1,6 +1,8 @@
-# CorridorKey for Nuke
+# CorridorKey 2.0 for Nuke
 
 A Nuke node for **[CorridorKey 2.0](https://github.com/nikopueringer/CorridorKey2.0)**, the AI green/blue screen keyer by Corridor Digital, so you can pull CorridorKey 2.0 keys inside Nuke.
+
+> **Built for CorridorKey 2.0.** The installer sets up CorridorKey 2.0 at the exact version this plugin was tested with (upstream commit [`485f5e9`](https://github.com/nikopueringer/CorridorKey2.0/commit/485f5e9ab759ead6138cc990776184b59d6ea971)). It does not work with CorridorKey 1.0.
 
 The plugin is free and unofficial. It doesn't include CorridorKey itself: the installer downloads CorridorKey 2.0 and its models from the official sources onto your machine.
 
