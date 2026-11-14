@@ -833,7 +833,7 @@ def prepare(node):
     if not os.path.isfile(py) or not os.path.isfile(os.path.join(backend_dir(), "infer.py")):
         nuke.message("CorridorKey 2.0 backend not found.\n\n"
                      f"Looked in: {backend_dir()}\n\n"
-                     "Install it with install/install_backend.py from the CorridorKey-Nuke repo, or point the "
+                     "Install it with install/install_backend.py from github.com/gireshahid33/CorridorKey2.0-Nuke, or point the "
                      "plugin at an existing install via Nodes > CorridorKey > Set backend folder...")
         return None
     if node.input(0) is None:
