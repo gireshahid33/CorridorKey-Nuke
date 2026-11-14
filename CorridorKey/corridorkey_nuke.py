@@ -100,6 +100,8 @@ MEMORY = ["auto", "low VRAM"]
 MODEL_COLOURS = ["viewer look (recommended)", "sRGB texture (no tone map)"]
 MODEL_ROLES = ["color_picking", "matte_paint"]
 
+KEY_FILE = "[value parent.cache_dir]/out/plate_cutout_exr/cutout_######.exr"
+
 HELP_HTML = """<b>CorridorKey 2.0 - how to use</b><br><br>
 <b>1. Plate</b> - connect your green/blue screen plate to the <i>Plate</i> input.<br>
 Works in ACES and in Nuke's default colour: the plate is converted to the display<br>
@@ -419,7 +421,7 @@ def create(connect_selected=True):
 
         # --- result: straight linear RGB + alpha written by CorridorKey
         rd = nuke.nodes.Read(name="Read_key", xpos=-200, ypos=-300)
-        rd["file"].setValue("[value parent.cache_dir]/out/plate_cutout_exr/cutout_######.exr")
+        rd["file"].setValue("")   # filled in by _point_read() once a key exists (a missing file errors in the GUI)
         rd["raw"].setValue(True)
         rd["first"].setExpression("0")
         rd["last"].setExpression("max(0, parent.ck_count - 1)")
@@ -545,7 +547,20 @@ def _point_read(node, first, count, keep_start=False):
     _apply_start(node)
     rd = _inner(node, "Read_key")
     if rd is not None:
+        rd["file"].setValue(KEY_FILE)
         rd["reload"].execute()
+
+
+def _detach_reads(node):
+    """Empty the inner and outside Reads (before the key files are deleted for a new run)."""
+    node["ck_ready"].setValue(0)
+    rd = _inner(node, "Read_key")
+    if rd is not None:
+        rd["file"].setValue("")
+    with _parent_group(node):
+        out = nuke.toNode(f"{node.name()}_Read")
+        if out is not None and out.Class() == "Read":
+            out["file"].setValue("")
 
 
 def _start(node):
@@ -853,9 +868,9 @@ def prepare(node):
             return None
         node["cache_dir"].setValue(own)
         cache = own
+    _detach_reads(node)                      # before the old key files are deleted
     for sub in ("plate", "hint", "out", "tmp"):
         _clean_dir(os.path.join(cache, sub))
-    node["ck_ready"].setValue(0)
     colour = int(node["model_colour"].getValue())
     node["ck_colour"].setValue(colour)
     to_model["out_colorspace"].setValue(MODEL_ROLES[colour])
