@@ -35,7 +35,7 @@ The image above shows frames 104, 117 and 128 of a green screen shot, keyed in a
 - **Outputs** (switch instantly, no re-run): premultiplied FG, straight FG, matte only, or plate + alpha (your original plate pixels with the new alpha).
 - **Live matte controls.** Clip black and clip white tighten the matte without a re-run. **key starts at** slides the key in time.
 - **Read + Switch.** After each run, the node builds a Read of the keyed EXRs plus an output Switch in your node graph, inside a backdrop with the plate and the CorridorKey node. **Ctrl+Alt+K** rebuilds it for the selected node.
-- **Safe caching.** Each node keeps its own cache folder. If two nodes point at the same folder, the node asks before overwriting. Proxy mode can't make it key a low-res plate.
+- **Safe caching.** You choose where each node caches its frames; Run won't start without a cache folder. If two nodes point at the same folder, the node asks before overwriting. Proxy mode can't make it key a low-res plate.
 - **How to use** tab on the node explains every control.
 
 ## Requirements
@@ -79,7 +79,7 @@ Or copy the `CorridorKey` folder into your `.nuke`, add `nuke.pluginAddPath('Cor
 ## Using it
 
 1. Connect your green or blue screen plate to the **Plate** input.
-2. Set **cache folder** (one per node), or leave it empty for an automatic folder.
+2. Set **cache folder**: the folder on your PC where this node saves its plate frames and key (one folder per node). It is required, so Run shows a message until you set it.
 3. Set the frame range: type it in, or use **from input** or **in/out** (the in/out points from the Viewer).
 4. Press **Run CorridorKey**. When it finishes, the node shows the key, and a Read + Switch appears in the node graph.
 

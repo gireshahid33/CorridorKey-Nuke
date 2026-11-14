@@ -65,10 +65,6 @@ def venv_python() -> str:
     return os.path.join(backend_dir(), "venv", *sub)
 
 
-def default_cache_root() -> str:
-    return _config().get("cache_root") or os.path.join(backend_dir(), "_nuke_cache")
-
-
 def set_backend(path: str) -> None:
     cfg = _config()
     cfg["backend"] = os.path.normpath(path).replace("\\", "/")
@@ -108,7 +104,7 @@ Works in ACES and in Nuke's default colour: the plate is converted to the displa
 look the model was trained on, and the key comes back in your working space.<br><br>
 <b>2. Cache folder</b> - where the plate frames and the key are saved.<br>
 Use one folder per CorridorKey node. A copy-pasted node keeps the same folder;<br>
-Run then offers it its own subfolder. Empty = automatic folder.<br><br>
+Run then offers it its own subfolder. <b>Required</b>: Run will not start without it.<br><br>
 <b>3. Frame range</b> - <i>from input</i> = the plate's range, <i>in/out</i> = the Viewer's<br>
 in and out points. The model keys the whole range together (that keeps it stable):<br>
 press <b>Run CorridorKey</b> and watch the progress bar.<br><br>
@@ -156,18 +152,15 @@ def _safe_name(text: str) -> str:
     return re.sub(r"[^A-Za-z0-9_.-]+", "_", text).strip("_") or "untitled"
 
 
-def _default_cache_dir(node) -> str:
-    script = nuke.root().name()
-    script = "untitled" if script in ("", "Root") else os.path.splitext(os.path.basename(script))[0]
-    return os.path.join(default_cache_root(), _safe_name(script), _safe_name(node.name())).replace("\\", "/")
+CACHE_REQUIRED_MSG = ("Set a cache folder first.\n\n"
+                      "CorridorKey saves the plate frames and the key there, so choose where on your PC "
+                      "they should go: click the folder icon next to 'cache folder' (or type a path), then run again.\n\n"
+                      "Use one folder per CorridorKey node.")
 
 
 def _cache_dir(node) -> str:
-    path = (node["cache_dir"].evaluate() or "").strip()
-    if not path:
-        path = _default_cache_dir(node)
-        node["cache_dir"].setValue(path)
-    return path.replace("\\", "/")
+    """The node's cache folder, or '' if none is set (there is no automatic default)."""
+    return (node["cache_dir"].evaluate() or "").strip().replace("\\", "/").rstrip("/")
 
 
 def _inner(node, name):
@@ -186,10 +179,12 @@ def _keyed_info(node, cache):
 
     Order of trust: ck_info.json written at run time > cached plate frame numbers > node knobs.
     """
-    out = os.path.join(cache, "out", "plate_cutout_exr")
-    count = len([f for f in os.listdir(out) if f.lower().endswith(".exr")]) if os.path.isdir(out) else 0
     first = int(node["ck_first"].value())
     colour = int(node["ck_colour"].value()) if node.knob("ck_colour") else 0
+    if not cache:                          # no cache folder set -> nothing keyed (never read a relative path)
+        return first, 0, colour
+    out = os.path.join(cache, "out", "plate_cutout_exr")
+    count = len([f for f in os.listdir(out) if f.lower().endswith(".exr")]) if os.path.isdir(out) else 0
     info_path = os.path.join(cache, "ck_info.json")
     try:
         with open(info_path, encoding="utf-8") as f:
@@ -217,8 +212,8 @@ def _cache_sharers(node, cache):
     for n in nuke.allNodes(recurseGroups=True):
         if n is node or n.knob("ck_first") is None or n.knob("cache_dir") is None:
             continue
-        other = (n["cache_dir"].evaluate() or "").strip() or _default_cache_dir(n)
-        if _norm(other) == me:
+        other = _cache_dir(n)
+        if other and _norm(other) == me:
             out.append(n)
     return out
 
@@ -288,7 +283,7 @@ def create(connect_selected=True):
     _knob(g, nuke.Text_Knob("about", "", "<b>CorridorKey 2.0</b> &nbsp; AI green/blue screen keyer"))
     k = _knob(g, nuke.File_Knob("cache_dir", "cache folder"))
     k.setTooltip("Where the plate frames and the key are stored - one folder per node. "
-                 "Empty = <backend>/_nuke_cache/<script>/<node>")
+                 "Required - Run will not start until a folder is set.")
     _knob(g, nuke.PyScript_Knob("open_cache", "open",
                                 "import corridorkey_nuke; corridorkey_nuke.open_cache(nuke.thisNode())"))
     run = _knob(g, nuke.PyScript_Knob("run_key", "  Run CorridorKey  ",
@@ -302,7 +297,7 @@ def create(connect_selected=True):
                                     "import corridorkey_nuke; corridorkey_nuke.make_read_switch(nuke.thisNode())"))
     k.setTooltip("Build a Read of the keyed EXRs and a Switch (premult FG / straight FG / matte / plate + alpha) "
                  "in the node graph. Done automatically after every run.")
-    st = _knob(g, nuke.Text_Knob("status", "status", "not keyed yet - press Run CorridorKey"))
+    st = _knob(g, nuke.Text_Knob("status", "status", "not keyed yet - set a cache folder, then press Run CorridorKey"))
     st.setFlag(nuke.STARTLINE)
 
     _knob(g, nuke.Text_Knob("div_range", "frame range"))
@@ -512,7 +507,14 @@ def range_from_viewer(node):
 
 def open_cache(node):
     path = _cache_dir(node)
-    os.makedirs(path, exist_ok=True)
+    if not path:
+        nuke.message(CACHE_REQUIRED_MSG)
+        return
+    try:
+        os.makedirs(path, exist_ok=True)
+    except OSError as exc:
+        nuke.message(f"Can't create the cache folder:\n{path}\n\n{exc}")
+        return
     if sys.platform == "win32":
         os.startfile(os.path.normpath(path))
     else:
@@ -520,6 +522,9 @@ def open_cache(node):
 
 
 def reload(node):
+    if not _cache_dir(node):
+        nuke.message(CACHE_REQUIRED_MSG)
+        return
     first, count, colour = _keyed_info(node, _cache_dir(node))
     if count == 0:
         nuke.message("No CorridorKey result in the cache folder yet. Press Run CorridorKey.")
@@ -665,7 +670,8 @@ def make_read_switch(node, quiet=False):
     first, count, colour = _keyed_info(node, cache)
     if count == 0:
         if not quiet:
-            nuke.message("No CorridorKey result in the cache folder yet. Press Run CorridorKey first.")
+            nuke.message(CACHE_REQUIRED_MSG if not cache else
+                         "No CorridorKey result in the cache folder yet. Press Run CorridorKey first.")
         return None
     note = _cache_owner_note(node, cache)
     if note and not quiet:
@@ -857,6 +863,16 @@ def prepare(node):
         return None
 
     cache = _cache_dir(node)
+    if not cache:
+        _status(node, "not run - set a cache folder first")
+        nuke.message(CACHE_REQUIRED_MSG)
+        return None
+    try:
+        os.makedirs(cache, exist_ok=True)
+    except OSError as exc:
+        _status(node, "not run - cache folder can't be created")
+        nuke.message(f"Can't create the cache folder:\n{cache}\n\n{exc}\n\nPick a folder on a drive that exists.")
+        return None
     sharers = _cache_sharers(node, cache)
     if sharers:
         names = ", ".join(n.name() for n in sharers)
