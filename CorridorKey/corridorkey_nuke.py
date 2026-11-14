@@ -390,7 +390,13 @@ def create(connect_selected=True):
         wp["disable"].setExpression("!parent.ck_rendering")
 
         # --- hint cache: chosen channel copied into rgb, on the plate's format
-        cp = nuke.nodes.Copy(name="Copy_hint", inputs=[plate, hint], xpos=400, ypos=-300)
+        # AddChannels guarantee rgba exists on both sides, so Copy_hint never errors
+        # (unconnected node, or a hint without alpha / red)
+        plate_ch = nuke.nodes.AddChannels(name="AddChannels_plate", inputs=[plate], channels="rgba",
+                                          xpos=300, ypos=-340)
+        hint_ch = nuke.nodes.AddChannels(name="AddChannels_hint", inputs=[hint], channels="rgba",
+                                         xpos=400, ypos=-340)
+        cp = nuke.nodes.Copy(name="Copy_hint", inputs=[plate_ch, hint_ch], xpos=400, ypos=-300)
         cp["from0"].setValue("rgba.red")
         cp["to0"].setValue("rgba.red")
         cp["from1"].setValue("rgba.alpha")
@@ -424,9 +430,12 @@ def create(connect_selected=True):
         rd["before"].setValue("black")
         rd["after"].setValue("black")
         rd["on_error"].setValue("black")
+        rd["disable"].setExpression("!parent.ck_ready")   # no key yet -> no missing-file error
 
         # model foreground (linear from its sRGB decode) -> sRGB -> back to working space
-        enc = nuke.nodes.Expression(name="Encode_sRGB", inputs=[rd], xpos=-200, ypos=-270)
+        # rgba always present downstream, even while Read_key is disabled (not keyed yet)
+        rd_ch = nuke.nodes.AddChannels(name="AddChannels_key", inputs=[rd], channels="rgba", xpos=-200, ypos=-285)
+        enc = nuke.nodes.Expression(name="Encode_sRGB", inputs=[rd_ch], xpos=-200, ypos=-270)
         _set_srgb_encode(enc)
         from_model = nuke.nodes.OCIOColorSpace(name="From_model", inputs=[enc], xpos=-200, ypos=-240)
         from_model["in_colorspace"].setValue(MODEL_ROLES[0])
