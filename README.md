@@ -45,8 +45,9 @@ The image above shows frames 104, 117 and 128 of a green screen shot, keyed in a
 | OS | Windows 10/11 or Linux (CorridorKey 2.0 needs CUDA, so macOS is not supported) |
 | GPU | NVIDIA RTX 30-series or newer. At least 4 GB VRAM for up to 1440p, 6 GB for 4K. More VRAM means longer temporal windows. |
 | Nuke | Tested with Nuke 17.1. Needs a Nuke with Python 3 and OCIO. |
-| Software | [Git](https://git-scm.com), [Python 3.10 – 3.13](https://www.python.org) (a normal Python install, not Nuke's), [ffmpeg](https://ffmpeg.org) on PATH (Windows: `winget install Gyan.FFmpeg`) |
-| Disk | About 10 GB for CorridorKey and its models, plus cache space for your shots (EXR) |
+| Software | Nothing to pre-install except a current NVIDIA driver. The installer sets up its own private Python 3.12, conda (Miniforge) and ffmpeg inside the CorridorKey folder, so the Python already on your machine doesn't matter. |
+| Disk | About 15 GB for CorridorKey, its Python environment and models, plus cache space for your shots (EXR) |
+| Internet | Needed during install (Miniforge, PyTorch, about 5 GB of models) |
 
 ## Install
 
@@ -61,18 +62,18 @@ The image above shows frames 104, 117 and 128 of a green screen shot, keyed in a
      ./install/install_linux.sh --backend ~/CorridorKey2.0
      ```
    The installer will:
-   1. clone CorridorKey 2.0 into the `--backend` folder (default `~/CorridorKey2.0`)
-   2. install CUDA PyTorch and the requirements into a virtual environment there
-   3. download about 5 GB of model weights from the official sources
-   4. copy the plugin to `~/.nuke/CorridorKey`
-   5. add one line to `~/.nuke/init.py`, after backing it up
+   1. download CorridorKey 2.0 from Corridor's GitHub into the `--backend` folder (default `~/CorridorKey2.0`), pinned to the version this plugin is tested with
+   2. install a private **Miniforge (conda)** in `<backend>/_conda` and create a **Python 3.12 + ffmpeg** environment in it. Nothing is added to your PATH or system Python. conda can't live in a path with spaces, so if your folder has one, conda goes to the drive root (`<drive>:\CorridorKey_conda`) instead.
+   3. install CUDA PyTorch and CorridorKey's requirements into that environment
+   4. download about 5 GB of model weights from the official sources
+   5. copy the plugin to `~/.nuke/CorridorKey`, point it at the environment, and add one line to `~/.nuke/init.py` (after backing it up)
 
    Re-running is safe: finished steps are skipped.
 3. Restart Nuke. The node is in **Nodes toolbar > CorridorKey > CorridorKey 2.0**, or press Tab and type "CorridorKey".
 
 **Already have CorridorKey 2.0 installed?** Install only the plugin:
-```bash
-python install/install_backend.py --skip-backend --backend /path/to/CorridorKey2.0
+```bat
+install\install_windows.bat --skip-backend --backend D:\path\to\CorridorKey2.0
 ```
 Or copy the `CorridorKey` folder into your `.nuke`, add `nuke.pluginAddPath('CorridorKey')` to `init.py`, and pick the folder in Nuke with **Nodes > CorridorKey > Set backend folder...**.
 
@@ -111,9 +112,10 @@ The hint decides *what* is keyed. It doesn't add edge detail.
 
 ## Troubleshooting
 
-- **"CorridorKey 2.0 backend not found":** run the installer, or use **Nodes > CorridorKey > Set backend folder...**.
+- **An older install failed with "No matching distribution found for scipy>=1.16"** (or another Python version error): download this repo again and run the new `install_windows.bat` with the same `--backend` folder. It now uses its own Python 3.12, so your system Python no longer matters. The old `venv` folder in the backend can be deleted afterwards.
+- **"CorridorKey 2.0 backend not found":** run the installer, or use **Nodes > CorridorKey > Set backend folder...**. If you moved the CorridorKey folder, point the plugin at the new place with *Set backend folder...*.
 - **CUDA out of memory:** close other GPU apps, set **GPU memory** to *low VRAM*, then lower **window** (8, 4, 2).
-- **ffmpeg not found:** install ffmpeg and make sure `ffmpeg` runs in a terminal.
+- **ffmpeg not found:** re-run the installer (it installs ffmpeg into CorridorKey's own environment).
 - **Key looks out of step with the plate:** press **reset** next to *key starts at*, or **Reload result**.
 
 ## Credits and licence

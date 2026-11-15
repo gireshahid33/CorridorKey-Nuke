@@ -58,16 +58,48 @@ def backend_dir() -> str:
     return os.path.normpath(next((c for c in candidates if c), candidates[-1]))
 
 
+def _conda_env_dirs(backend: str) -> list:
+    """Where install_backend.py puts the conda env for this backend (path without / with spaces)."""
+    if sys.platform == "win32":
+        drive_root = os.path.splitdrive(os.path.abspath(backend))[0] + "\\"
+        roots = [os.path.join(backend, "_conda"), os.path.join(drive_root, "CorridorKey_conda")]
+    else:
+        roots = [os.path.join(backend, "_conda"), os.path.expanduser("~/.corridorkey_conda")]
+    return [os.path.join(r, "envs", "corridorkey") for r in roots]
+
+
 def venv_python() -> str:
-    if _config().get("python"):
-        return _config()["python"]
-    sub = ("Scripts", "python.exe") if sys.platform == "win32" else ("bin", "python")
-    return os.path.join(backend_dir(), "venv", *sub)
+    """Python that runs CorridorKey: config > the installer's conda env > an older venv install."""
+    cfg = _config().get("python", "")
+    if cfg and os.path.isfile(cfg):
+        return cfg
+    win = sys.platform == "win32"
+    exe = "python.exe" if win else os.path.join("bin", "python")
+    backend = backend_dir()
+    candidates = [os.path.join(d, exe) for d in _conda_env_dirs(backend)]
+    candidates.append(os.path.join(backend, "venv", *(("Scripts", "python.exe") if win else ("bin", "python"))))
+    for p in candidates:
+        if os.path.isfile(p):
+            return p
+    return cfg or candidates[0]
+
+
+def _python_dirs() -> list:
+    """Folders to put on PATH so the env's python and its DLLs work without 'conda activate'."""
+    root = os.path.dirname(venv_python())
+    if sys.platform != "win32":
+        return [root]
+    if os.path.basename(root).lower() == "scripts":        # venv: <venv>/Scripts/python.exe
+        return [root]
+    return [root] + [os.path.join(root, *p) for p in (("Library", "mingw-w64", "bin"), ("Library", "usr", "bin"),
+                                                      ("Library", "bin"), ("Scripts",))]
 
 
 def set_backend(path: str) -> None:
     cfg = _config()
     cfg["backend"] = os.path.normpath(path).replace("\\", "/")
+    cfg.pop("python", None)      # found again for the new backend (conda env or venv)
+    cfg.pop("ffmpeg", None)
     with open(CONFIG_PATH, "w", encoding="utf-8") as f:
         json.dump(cfg, f, indent=1)
 
@@ -137,6 +169,14 @@ _jobs: dict[str, "_Job"] = {}
 # --------------------------------------------------------------------------
 
 def _find_ffmpeg() -> str:
+    """ffmpeg for CorridorKey: config > the installer's conda env > PATH > winget."""
+    cfg = _config().get("ffmpeg", "")
+    if cfg and os.path.isfile(cfg):
+        return cfg
+    for d in _python_dirs():
+        for name in ("ffmpeg.exe", "ffmpeg"):
+            if os.path.isfile(os.path.join(d, name)):
+                return os.path.join(d, name)
     found = shutil.which("ffmpeg")
     if found:
         return found
@@ -951,8 +991,9 @@ def subprocess_env():
         env.pop(var, None)
     env["PYTHONUNBUFFERED"] = "1"
     env["PYTHONIOENCODING"] = "utf-8"
+    env["PYTHONNOUSERSITE"] = "1"
     env["HF_HOME"] = os.path.join(backend_dir(), "_cache", "hf")
-    env["PATH"] = os.path.dirname(venv_python()) + os.pathsep + env.get("PATH", "")
+    env["PATH"] = os.pathsep.join(_python_dirs()) + os.pathsep + env.get("PATH", "")
     return env
 
 
